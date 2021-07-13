@@ -1,0 +1,40 @@
+let mongoose = require('mongoose');
+
+module.exports = mongoose.model('wallet',{
+    name:{
+        type:String
+    },
+    mobile:{
+        type:Number
+    },
+    walletBal:{
+        type:Number
+    },
+    lastBal:{
+        type:Number
+    },
+    currentBal:{
+        type:Number
+    },
+    totalearning:{
+        type:Number
+    },
+    utility:{
+        type:Number
+    },
+    eComm:{
+        type:Number
+    },
+    demat:{
+        type:Number
+    },
+    ad:{
+        type:Number
+    },
+    reward:{
+        type:Number
+    },
+    lastReward:{
+        type:Number
+    }
+})
