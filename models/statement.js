@@ -9,7 +9,6 @@ module.exports = mongoose.model('statement',{
     },
     date:{
         type:Date,
-        'default':Date.now()
     },
     remark:{
         type: String

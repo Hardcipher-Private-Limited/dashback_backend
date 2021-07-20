@@ -17,6 +17,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -56,6 +60,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{
@@ -97,6 +105,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -136,6 +148,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{
@@ -177,6 +193,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -216,6 +236,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{
@@ -257,6 +281,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -296,6 +324,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{
@@ -337,6 +369,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -376,6 +412,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{
@@ -417,6 +457,10 @@ module.exports = mongoose.model('level',{
         mobile:{
             type:Number
         },
+        account:{
+            type:String,
+            'Default':'Basic'
+        },
         earning:{
             utility:{
                 type:Number,
@@ -456,6 +500,10 @@ module.exports = mongoose.model('level',{
         },
         mobile:{
             type:Number
+        },
+        account:{
+            type:String,
+            'Default':'Basic'
         },
         earning:{
             utility:{

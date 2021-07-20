@@ -24,6 +24,7 @@ module.exports={
         let operator = req.body.operator
         let operatorCode = req.body.operatorCode
         let amtType = 'Balance'
+        let Otype = req.body.type
 
         let transId = "S"+Date.now()
 
@@ -47,8 +48,10 @@ module.exports={
                             let bal = JSON.parse(data_Bal).Balance
                             if(bal < walBal){
                                 res.json({'err':1,'msg':'Internal server error. Please try again later!!!'})
+                                console.log(bal)
                             }
                             else{
+                                console.log(bal)
                                 service.findOne({'operator_Name':operator,'operator_Code':operatorCode},(err,data2)=>{
                                     if(err){
                                         res.json({'err':1,'msg':'Internal server error. Please try again later!!!'})
@@ -57,8 +60,92 @@ module.exports={
                                         // console.log(JSON.parse(data2))
                                         let commision = data2.commission
                                         let commison_Type = data2.Percentage_Flat
-                                        https.get(`https://cyrusrecharge.in/api/recharge.aspx?memberid=${memberId}&pin=${APIkey}&number=${tranNo}
-                                                    &operator=${operatorCode}&circle=${circleCode}&amount=${amt}&usertx=${transId}&format=json`, 
+                                        console.log(Otype)
+                                        if (Otype == "Postpaid-Mobile" || Otype == "Prepaid-Mobile" ) {
+                                            https.get(`https://cyrusrecharge.in/api/recharge.aspx?memberid=${memberId}&pin=${APIkey}&number=${tranNo}
+                                                    &operator=${operatorCode}&circle=${circleCode}&amount=${amt}&usertx=${transId}&format=json`,
+                                                (resp) => {
+                                                    let Tran_data = "";
+
+                                                    resp.on('data', (chunck) => {
+                                                        Tran_data += chunck
+                                                    })
+
+                                                    resp.on('end', () => {
+                                                        console.log(Tran_data);
+                                                        let trans_res = JSON.parse(Tran_data);
+                                                        wallet.updateOne({ 'mobile': Mobile }, { $inc: { 'walletBal': -amt } }, (err) => {
+                                                            if (err) {
+                                                                res.json({ 'err': 1, 'msg': 'Internal server error. Please try again later!!!' })
+                                                            }
+                                                            else {
+                                                                let ins = new statement({
+                                                                    'mobile': Mobile, 'name': name, 'transId': transId, 'status': 'Pending', 'amt': amt, 'date': Date.now(),
+                                                                    'amtType': amtType, 'opreatorName': operator, 'operatorCode': operatorCode, 'transName': 'Recharge/Bill Payment', 'tranType': 'Debit',
+                                                                    'remark': `Recharge/Bill payment transaction accepted.`
+                                                                })
+                                                                ins.save((err) => {
+                                                                    if (err) {
+                                                                        res.json({ 'err': 1, 'msg': 'Internal server error. Please try again later!!!!' })
+                                                                    }
+                                                                    else {
+                                                                        if (trans_res.Status == "Failure" || trans_res.Status == "FAILURE") {
+                                                                            let new_transID = "S" + Date.now()
+                                                                            statement.updateOne({ 'mobile': Mobile, 'transId': transId }, {
+                                                                                'status': 'Failure', 'remark': 'Recharge/Bill payment transaction failed.',
+                                                                                'tranRes': trans_res
+                                                                            }, (err) => {
+                                                                                if (err) {
+                                                                                    res.json({ 'err': 1, 'msg': 'Internal server error. Please try again later!!!' })
+                                                                                }
+                                                                                else {
+                                                                                    wallet.updateOne({ 'mobile': Mobile }, { $inc: { 'walletBal': amt } }, (err) => {
+                                                                                        if (err) {
+                                                                                            res.json({ 'err': 1, 'msg': 'Internal server error. Please try again later!!!' })
+                                                                                        }
+                                                                                        else {
+                                                                                            let ins_sat = new statement({
+                                                                                                'mobile': Mobile, 'name': name, 'transId': new_transID, 'status': 'Succesful', 'amt': amt, 'date': Date.now(),
+                                                                                                'amtType': amtType, 'opreatorName': 'Wallet funds', 'transName': 'Refunded', 'tranType': 'credit',
+                                                                                                'remark': 'Funds succesfully refunded to wallet'
+                                                                                            })
+
+                                                                                            ins_sat.save((err) => {
+                                                                                                if (err) {
+                                                                                                    res.json({ 'err': 1, 'msg': 'Internal server error. Please try again later!!!' })
+                                                                                                }
+                                                                                                else {
+                                                                                                    res.json({ 'err': 3, 'msg': trans_res.ErrorMessage })
+                                                                                                }
+                                                                                            })
+                                                                                        }
+                                                                                    })
+                                                                                }
+                                                                            })
+                                                                        }
+                                                                        if (trans_res.Status == "Success") {
+                                                                            this.success(transId, Mobile, name, trans_res, amt, commision, commison_Type)
+                                                                        }
+                                                                        if (trans_res.Status == "Pending") {
+                                                                            res.json({ 'err': 0, 'msg': 'Transaction initiated.' })
+                                                                            // let APIID = trans_res.ApiTransID
+                                                                            this.checkStatus(transId, Mobile, name, amt, commision, commison_Type);
+
+                                                                        }
+                                                                    }
+                                                                })
+                                                            }
+                                                        })
+                                                    })
+                                                }).on('error', (err) => {
+                                                    console.log(err)
+                                                })
+                                        }
+                                        if(Otype == 'Gas Cylinder'){
+                                            let Other_Values = ''
+                                            https.get(`https://cyrusrecharge.in/api/recharge.aspx?memberid=${memberId}&pin=${APIkey}&number=${tranNo}
+                                                    &operator=${operatorCode}&circle=${circleCode}&amount=${amt}&othervalue=${Other_Values}&othervalue1=${Other_Values}
+                                                    &othervalue2=${Other_Values}&othervalue3=${Other_Values}&othervalue4=${Other_Values}&usertx=${transId}&account=&format=json`, 
                                                     (resp)=>{
                                             let Tran_data = "";
 
@@ -74,7 +161,7 @@ module.exports={
                                                         res.json({'err':1,'msg':'Internal server error. Please try again later!!!'})
                                                     }
                                                     else{
-                                                        let ins = new statement({'mobile':Mobile,'name':name, 'transId':transId, 'status':'Pending', 'amt':amt, 
+                                                        let ins = new statement({'mobile':Mobile,'name':name, 'transId':transId, 'status':'Pending', 'amt':amt, 'date':Date.now(),
                                                                                     'amtType': amtType, 'opreatorName':operator, 'operatorCode':operatorCode, 'transName':'Recharge/Bill Payment', 'tranType':'Debit',
                                                                                     'remark':`Recharge/Bill payment transaction accepted.`})
                                                         ins.save((err)=>{
@@ -95,7 +182,7 @@ module.exports={
                                                                                     res.json({'err':1,'msg':'Internal server error. Please try again later!!!'})
                                                                                 }
                                                                                 else{
-                                                                                    let ins_sat = new statement({'mobile':Mobile,'name':name, 'transId':new_transID, 'status':'Succesful', 'amt':amt, 
+                                                                                    let ins_sat = new statement({'mobile':Mobile,'name':name, 'transId':new_transID, 'status':'Succesful', 'amt':amt, 'date':Date.now(),
                                                                                     'amtType': amtType, 'opreatorName':'Wallet funds', 'transName':'Refunded', 'tranType':'credit',
                                                                                     'remark':'Funds succesfully refunded to wallet'})
 
@@ -129,6 +216,10 @@ module.exports={
                                         }).on('error',(err)=>{
                                             console.log(err)
                                         })
+                                        }
+                                        else{
+                                            console.log('this is working')
+                                        }
                                     }
                                 })
                             }
@@ -188,7 +279,7 @@ module.exports={
                                         console.log(err)
                                     }
                                     else{
-                                        let ins_sat = new statement({'mobile':mobile,'name':name, 'transId':ne_transId, 'status':'Succesful', 'amt':amt, 
+                                        let ins_sat = new statement({'mobile':mobile,'name':name, 'transId':ne_transId, 'status':'Succesful', 'amt':amt, 'date':Date.now(),
                                         'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Refunded', 'tranType':'credit',
                                         'remark':'Funds succesfully refunded to wallet'})
 
@@ -235,7 +326,7 @@ module.exports={
                                 let cashback_Amt = parseFloat(commision_amt * 0.8).toFixed(2);
                                 let cashback = parseFloat(cashback_Amt * 0.5).toFixed(2);
                                 let transId = "S"+Date.now()
-                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                                 'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                                 'remark':'Cashback succesfully added to wallet'})
                                 ins.save((err)=>{
@@ -248,6 +339,7 @@ module.exports={
                                                 console.log(err)
                                             }
                                             else{
+                                                // level.updateOne({})
                                                 this.success1(mobile,cashback_Amt,commision_amt)
                                             }
                                         })
@@ -258,7 +350,7 @@ module.exports={
                                 let cashback_Amt = parseFloat(commision * 0.8).toFixed(2);
                                 let cashback = parseFloat(cashback_Amt * 0.5).toFixed(2);
                                 let transId = "S"+Date.now()
-                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                                 'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                                 'remark':'Cashback succesfully added to wallet'})
                                 ins.save((err)=>{
@@ -285,7 +377,7 @@ module.exports={
                                 let free = parseFloat(cashback_Amt * 0.5).toFixed(2);
                                 let cashback = parseFloat(free * 0.8).toFixed(2);
                                 let transId = "S"+Date.now()
-                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                                 'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                                 'remark':'Cashback succesfully added to wallet'})
                                 ins.save((err)=>{
@@ -309,7 +401,7 @@ module.exports={
                                 let free = parseFloat(cashback_Amt * 0.5).toFixed(2);
                                 let cashback = parseFloat(free * 0.8).toFixed(2);
                                 let transId = "S"+Date.now()
-                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                                let ins = new statement({'mobile':mobile,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                                 'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                                 'remark':'Cashback succesfully added to wallet'})
                                 ins.save((err)=>{
@@ -356,7 +448,7 @@ module.exports={
                         if(type == "Premium"){
                             let cashback = parseFloat(cashback_Amt * 0.2).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 1'})
 
@@ -370,8 +462,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl1':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl1.mobile':mobile},{$inc:{'lvl1.$.earning.utility':cashback,
+                                                                'lvl1.$.earning.utilityToday':cashback,'lvl1.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -388,7 +480,7 @@ module.exports={
                             let free = parseFloat(cashback_Amt * 0.2).toFixed(2)
                             let cashback = parseFloat(free * 0.8).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 1'})
 
@@ -402,8 +494,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl1':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl1.mobile':mobile},{$inc:{'lvl1.$.earning.utility':cashback,
+                                            'lvl1.$.earning.utilityToday':cashback,'lvl1.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -443,7 +535,7 @@ module.exports={
                         if(type == "Premium"){
                             let cashback = parseFloat(cashback_Amt * 0.1).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 2'})
 
@@ -457,8 +549,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl2':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl2.mobile':mobile},{$inc:{'lvl2.$.earning.utility':cashback,
+                                            'lvl2.$.earning.utilityToday':cashback,'lvl2.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -475,7 +567,7 @@ module.exports={
                             let free = parseFloat(cashback_Amt * 0.1).toFixed(2)
                             let cashback = parseFloat(free * 0.8).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 2'})
 
@@ -489,8 +581,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl2':[{'mobile':T_mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl2.mobile':mobile},{$inc:{'lvl2.$.earning.utility':cashback,
+                                            'lvl2.$.earning.utilityToday':cashback,'lvl2.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -530,7 +622,7 @@ module.exports={
                         if(type == "Premium"){
                             let cashback = parseFloat(cashback_Amt * 0.1).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 3'})
 
@@ -544,8 +636,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl3':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl3.mobile':mobile},{$inc:{'lvl3.$.earning.utility':cashback,
+                                            'lvl3.$.earning.utilityToday':cashback,'lvl3.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -562,7 +654,7 @@ module.exports={
                             let free = parseFloat(cashback_Amt * 0.1).toFixed(2)
                             let cashback = parseFloat(free * 0.8).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 3'})
 
@@ -576,8 +668,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl3':[{'mobile':T_mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl3.mobile':mobile},{$inc:{'lvl3.$.earning.utility':cashback,
+                                            'lvl3.$.earning.utilityToday':cashback,'lvl3.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -617,7 +709,7 @@ module.exports={
                         if(type == "Premium"){
                             let cashback = parseFloat(cashback_Amt * 0.05).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 4'})
 
@@ -631,8 +723,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl4':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl4.mobile':mobile},{$inc:{'lvl4.$.earning.utility':cashback,
+                                            'lvl4.$.earning.utilityToday':cashback,'lvl4.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -649,7 +741,7 @@ module.exports={
                             let free = parseFloat(cashback_Amt * 0.05).toFixed(2)
                             let cashback = parseFloat(free * 0.8).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 4'})
 
@@ -663,8 +755,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl4':[{'mobile':T_mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl4.mobile':mobile},{$inc:{'lvl4.$.earning.utility':cashback,
+                                            'lvl4.$.earning.utilityToday':cashback,'lvl4.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -704,7 +796,7 @@ module.exports={
                         if(type == "Premium"){
                             let cashback = parseFloat(cashback_Amt * 0.05).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 5'})
 
@@ -718,8 +810,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl5':[{'mobile':mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl5.mobile':mobile},{$inc:{'lvl5.$.earning.utility':cashback,
+                                            'lvl5.$.earning.utilityToday':cashback,'lvl5.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -737,7 +829,7 @@ module.exports={
                             let free = parseFloat(cashback_Amt * 0.05).toFixed(2)
                             let cashback = parseFloat(free * 0.8).toFixed(2)
 
-                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 
+                            let ins = new statement({'mobile':sponser,'name':name, 'transId':transId, 'status':'Succesful', 'amt':cashback, 'date':Date.now(),
                             'amtType': 'Balance', 'opreatorName':'Wallet funds', 'transName':'Cashback', 'tranType':'credit',
                             'remark':'Cashback succesfully added to wallet. For recharge/Bill payment on Tier 5'})
 
@@ -751,8 +843,8 @@ module.exports={
                                             console.log(err)
                                         }
                                         else{
-                                            level.updateOne({'mobile':sponser,'lvl5':[{'mobile':T_mobile}]},{$inc:[{'earning':{'utility':cashback,
-                                                                'utilityToday':cashback,'utilityMonth':cashback}}]},(err)=>{
+                                            level.updateOne({'mobile':sponser,'lvl5.mobile':mobile},{$inc:{'lvl5.$.earning.utility':cashback,
+                                            'lvl5.$.earning.utilityToday':cashback,'lvl5.$.earning.utilityMonth':cashback}},(err)=>{
                                                                     if(err){
                                                                         console.log(err);
                                                                     }
@@ -833,5 +925,8 @@ module.exports={
                 }
             }
         })
+    },
+    fetchTran:function(){
+        https.request('https://cyrusrecharge.in/api/BillFetch_Cyrus_BA.aspx')
     }
 }

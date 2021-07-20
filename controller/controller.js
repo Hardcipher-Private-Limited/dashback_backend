@@ -81,7 +81,7 @@ module.exports={
                                         let S_lvl = data2.lvlNo + 1
                                         let ancestors = data2.ancestors
                                         
-                                        let ins = new profile({'id':id,'name':name, 'mobile':mobile, 'email': email, 'sponserName':S_name, 'sponser_Number':sponsorNo, 'ancestors':ancestors, 'lvlNo': S_lvl})
+                                        let ins = new profile({'id':id,'name':name, 'mobile':mobile, 'email': email, 'sponserName':S_name, 'sponser_Number':sponsorNo, 'ancestors':ancestors, 'lvlNo': S_lvl, 'regi_Date':Date.now()})
                                         ins.save((err)=>{
                                             if(err){
                                                 res.json({'err':1,'msg':'Internal server error. Please Try again later!!!'})
@@ -296,6 +296,21 @@ module.exports={
             }
             else{
                 res.json({'err':0, 'msg':'Data found successfully.','data':data})
+            }
+        })
+    },
+    //fetch by number
+    fetchbyNum:function(req,res){
+        let mobile = req.params.mob
+        profile.findOne({'mobile':mobile},(err,data)=>{
+            if(err){
+                res.json({'err':1,'msg':'Internal server error. Please try again later!!!'})
+            }
+            if(!data || data.length == 0){
+                res.json({'err':2, 'msg':'No data found.'})
+            }
+            else{
+                res.json({'err':0, 'msg':'Data found', 'data': {'name':data.name, 'mobile': data.mobile}})
             }
         })
     }

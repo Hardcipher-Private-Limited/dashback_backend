@@ -26,14 +26,17 @@ module.exports = mongoose.model('profile',{
         type:Number,
     },
     regi_Date:{
-        type:Date,
-        'default':Date.now()
+        type:Date
     },
     account_Type:{
         type:String
     },
     activationDate:{
         type:String
+    },
+    premium_First:{
+        type: Boolean,
+        'Default':false
     },
     ancestors:[],
     account_Details:[

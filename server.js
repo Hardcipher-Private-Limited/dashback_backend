@@ -35,22 +35,9 @@ cron.schedule('* * * * *',()=>{
   conn.updatePending();
 })
 
-cron.schedule('* * * * *',()=>{
-  let amt = 0.44
-  let cb = parseFloat(3.28 * 0.8).toFixed(2)
-  console.log('cb',cb);
-  let cbd = parseFloat((cb * 0.5)*0.8).toFixed(2)
-  console.log('cbd',cbd);
-  let cb1 = parseFloat((cb * 0.2)*0.8).toFixed(2)
-  console.log('cb1',cb1)
-  let cb2 = parseFloat((cb * 0.1)*0.8).toFixed(2)
-  console.log('cb2',cb2)
-  let cb3 = parseFloat((cb * 0.1)*0.8).toFixed(2)
-  console.log('cb3',cb3)
-  let cb4 = parseFloat((cb * 0.05)*0.8).toFixed(2)
-  console.log('cb4',cb4)
-  let cb5 = parseFloat((cb * 0.05)*0.8).toFixed(2)
-  console.log('cb5',cb5)
+cron.schedule('* * * * * *',()=>{
+  // var conn = require('./controller/wallet');
+  // conn.add5Id()
 })
 
 app.post('/checkMob', cors(corsOptions),(req,res)=>{
@@ -72,7 +59,7 @@ app.get('/checkSpon/:mob', cors(corsOptions),(req,res)=>{
     conn.fetchSponsor(req,res);
 })
 app.get('/checkVer', cors(corsOptions),(req,res)=>{
-    res.json({'err':0,'version':'1.1.558'})
+    res.json({'err':0,'version':'1.1.560'})
 })
 app.post('/login', cors(corsOptions),(req,res)=>{
     var conn = require('./controller/controller');
@@ -125,6 +112,14 @@ app.get('/fetchprofile/:mob', cors(corsOptions),(req,res)=>{
 app.get('/premium/:mob', cors(corsOptions),(req,res)=>{
   var conn = require('./controller/premium');
   conn.premium(req,res);
+})
+app.get('/fetchbyNumber/:mob', cors(corsOptions),(req,res)=>{
+  var conn = require('./controller/controller');
+  conn.fetchbyNum(req,res);
+})
+app.post('/fundTransfer', cors(corsOptions),(req,res)=>{
+  var conn = require('./controller/fundTransfer');
+  conn.fundsTransfer(req,res)
 })
 server.listen(2702,()=>{
     console.log("Running at port 2702")
